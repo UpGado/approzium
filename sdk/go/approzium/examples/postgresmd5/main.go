@@ -25,7 +25,7 @@ docker exec -it some-postgres bash
 
 psql -h localhost -U postgres
 
- */
+*/
 func main() {
 	authClient := approzium.NewAuthClient("authenticator:6001", "", "")
 

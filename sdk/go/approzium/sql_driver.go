@@ -25,16 +25,16 @@ const defaultPostgresPort = "5432"
 // 		- https://somewhere:6001
 func NewAuthClient(grpcAddress string, pathToTLSCert, pathToTLSKey string) *AuthClient {
 	return &AuthClient{
-		grpcAddress: grpcAddress,
+		grpcAddress:   grpcAddress,
 		pathToTLSCert: pathToTLSCert,
-		pathToTLSKey: pathToTLSKey,
+		pathToTLSKey:  pathToTLSKey,
 	}
 }
 
 type AuthClient struct {
-	grpcAddress string
+	grpcAddress   string
 	pathToTLSCert string
-	pathToTLSKey string
+	pathToTLSKey  string
 
 	hashFuncLock sync.Mutex
 }
@@ -124,14 +124,14 @@ func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql
 	defer a.hashFuncLock.Unlock()
 	pq.GetMD5Hash = func(user, password, salt string) (string, error) {
 		resp, err := authClient.GetPGMD5Hash(context.Background(), &pb.PGMD5HashRequest{
-			PwdRequest:           &pb.PasswordRequest{
-				ClientLanguage:       pb.ClientLanguage_GO,
-				Dbhost:               dbHost,
-				Dbport:               dbPort,
-				Dbuser:               user,
-				Aws:                  id.AWS,
+			PwdRequest: &pb.PasswordRequest{
+				ClientLanguage: pb.ClientLanguage_GO,
+				Dbhost:         dbHost,
+				Dbport:         dbPort,
+				Dbuser:         user,
+				Aws:            id.AWS,
 			},
-			Salt:                 []byte(salt),
+			Salt: []byte(salt),
 		})
 		if err != nil {
 			return "", err
