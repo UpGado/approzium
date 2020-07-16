@@ -1,0 +1,10 @@
+module github.com/cyralinc/approzium/sdk/go/approzium
+
+go 1.14
+
+require (
+	github.com/cyralinc/approzium/authenticator v0.0.0-20200716182448-7483a89b78d8
+	github.com/cyralinc/pq v1.7.1-0.20200716225830-f72d68bb8972
+	github.com/lib/pq v1.7.0 // indirect
+	google.golang.org/grpc v1.30.0
+)
