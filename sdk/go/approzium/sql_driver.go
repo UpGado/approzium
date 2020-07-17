@@ -21,9 +21,9 @@ const defaultPostgresPort = "5432"
 type Config struct {
 	// TODO logging
 	// TODO implement TLS
-	DisableTLS bool
-	PathToTLSCert string
-	PathToTLSKey string
+	DisableTLS      bool
+	PathToTLSCert   string
+	PathToTLSKey    string
 	RoleArnToAssume string
 }
 
@@ -38,8 +38,8 @@ func NewAuthClient(grpcAddress string, config *Config) (*AuthClient, error) {
 		return nil, err
 	}
 	return &AuthClient{
-		grpcAddress: grpcAddress,
-		config: config,
+		grpcAddress:     grpcAddress,
+		config:          config,
 		identityHandler: identityHandler,
 	}, nil
 }
@@ -47,7 +47,7 @@ func NewAuthClient(grpcAddress string, config *Config) (*AuthClient, error) {
 type AuthClient struct {
 	// Caller config
 	grpcAddress string
-	config *Config
+	config      *Config
 
 	// This is used for preventing a race as we overwrite the hashing
 	// func for each call.
@@ -139,12 +139,12 @@ func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql
 	defer a.hashFuncLock.Unlock()
 	pq.GetMD5Hash = func(user, password, salt string) (string, error) {
 		resp, err := authClient.GetPGMD5Hash(context.Background(), &pb.PGMD5HashRequest{
-			PwdRequest:           &pb.PasswordRequest{
-				ClientLanguage:       proof.ClientLang,
-				Dbhost:               dbHost,
-				Dbport:               dbPort,
-				Dbuser:               user,
-				Aws:                  proof.AwsAuth,
+			PwdRequest: &pb.PasswordRequest{
+				ClientLanguage: proof.ClientLang,
+				Dbhost:         dbHost,
+				Dbport:         dbPort,
+				Dbuser:         user,
+				Aws:            proof.AwsAuth,
 			},
 			Salt: []byte(salt),
 		})

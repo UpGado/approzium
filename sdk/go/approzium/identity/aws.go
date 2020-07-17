@@ -17,7 +17,7 @@ var refreshEvery = 5 * time.Minute
 // To not assume a role, simply provide "".
 func newAwsIdentityHandler(roleArnToAssume string) (*awsIdentityHandler, error) {
 	h := &awsIdentityHandler{
-		roleArnToAssume:     roleArnToAssume,
+		roleArnToAssume: roleArnToAssume,
 	}
 	// Initially ensure we can get a caller identity on the main thread so
 	// we can provide immediate feedback if it's misconfigured.
@@ -33,8 +33,8 @@ func newAwsIdentityHandler(roleArnToAssume string) (*awsIdentityHandler, error) 
 type awsIdentityHandler struct {
 	roleArnToAssume string
 
-	identityLock sync.RWMutex
-	latestIdentity      *pb.AWSIdentity
+	identityLock   sync.RWMutex
+	latestIdentity *pb.AWSIdentity
 }
 
 func (h *awsIdentityHandler) RetrieveAWSIdentity() *pb.AWSIdentity {
@@ -44,11 +44,11 @@ func (h *awsIdentityHandler) RetrieveAWSIdentity() *pb.AWSIdentity {
 }
 
 func (h *awsIdentityHandler) startBackgroundRefresh() {
-	go func(){
+	go func() {
 		ticker := time.NewTicker(refreshEvery)
 		for true {
 			select {
-			case <- ticker.C:
+			case <-ticker.C:
 				if err := h.refreshProof(); err != nil {
 					// TODO log it
 				}
