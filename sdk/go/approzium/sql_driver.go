@@ -19,7 +19,7 @@ import (
 
 const (
 	defaultPostgresPort = "5432"
-	postgresUrlPrefix = "postgres://"
+	postgresUrlPrefix   = "postgres://"
 )
 
 type Config struct {
