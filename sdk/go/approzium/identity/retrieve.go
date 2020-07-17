@@ -3,10 +3,11 @@ package identity
 import (
 	"github.com/cyralinc/approzium/authenticator/server/identity"
 	pb "github.com/cyralinc/approzium/authenticator/server/protos"
+	log "github.com/sirupsen/logrus"
 )
 
-func NewHandler(roleArnToAssume string) (*Handler, error) {
-	awsHandler, err := newAwsIdentityHandler(roleArnToAssume)
+func NewHandler(logger *log.Logger, roleArnToAssume string) (*Handler, error) {
+	awsHandler, err := newAwsIdentityHandler(logger, roleArnToAssume)
 	if err != nil {
 		return nil, err
 	}

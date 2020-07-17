@@ -10,13 +10,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	pb "github.com/cyralinc/approzium/authenticator/server/protos"
+	log "github.com/sirupsen/logrus"
 )
 
 var refreshEvery = 5 * time.Minute
 
 // To not assume a role, simply provide "".
-func newAwsIdentityHandler(roleArnToAssume string) (*awsIdentityHandler, error) {
+func newAwsIdentityHandler(logger *log.Logger, roleArnToAssume string) (*awsIdentityHandler, error) {
 	h := &awsIdentityHandler{
+		logger: logger,
 		roleArnToAssume:     roleArnToAssume,
 	}
 	// Initially ensure we can get a caller identity on the main thread so
@@ -31,6 +33,7 @@ func newAwsIdentityHandler(roleArnToAssume string) (*awsIdentityHandler, error) 
 }
 
 type awsIdentityHandler struct {
+	logger *log.Logger
 	roleArnToAssume string
 
 	identityLock sync.RWMutex
@@ -50,7 +53,13 @@ func (h *awsIdentityHandler) startBackgroundRefresh() {
 			select {
 			case <- ticker.C:
 				if err := h.refreshProof(); err != nil {
-					// TODO log it
+					h.logger.Warnf("unable to refresh AWS get caller identity creds due to %s", err)
+					continue
+				}
+				if h.logger.IsLevelEnabled(log.DebugLevel) {
+					h.identityLock.RLock()
+					h.logger.Debugf("identity refreshed to %+v", h.latestIdentity)
+					h.identityLock.RUnlock()
 				}
 			}
 		}

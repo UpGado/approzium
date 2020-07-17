@@ -13,17 +13,27 @@ import (
 	"github.com/cyralinc/approzium/sdk/go/approzium/identity"
 	"github.com/cyralinc/pq"
 	_ "github.com/cyralinc/pq"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
 const defaultPostgresPort = "5432"
 
 type Config struct {
-	// TODO logging
+	// Logger is optional. It's available for you to set in case you'd like to
+	// customize it. If not set, it defaults to INFO level and text output.
+	Logger *log.Logger
+
 	// TODO implement TLS
+	// Set to true
 	DisableTLS bool
 	PathToTLSCert string
 	PathToTLSKey string
+
+	// RoleArnToAssume is an optional field. Simply don't set it if you'd prefer
+	// not to assume any role when AWS is used to prove an identity. If not supplied,
+	// the enclosing environment's identity will be used. This is mostly provided
+	// for convenience of testing.
 	RoleArnToAssume string
 }
 
@@ -33,7 +43,16 @@ type Config struct {
 // 		- https://localhost:6001
 // 		- https://somewhere:6001
 func NewAuthClient(grpcAddress string, config *Config) (*AuthClient, error) {
-	identityHandler, err := identity.NewHandler(config.RoleArnToAssume)
+	if config.Logger == nil {
+		config.Logger = log.New()
+		config.Logger.SetLevel(log.InfoLevel)
+		config.Logger.SetFormatter(&log.TextFormatter{
+			FullTimestamp:          true,
+			DisableLevelTruncation: true,
+			PadLevelText:           true,
+		})
+	}
+	identityHandler, err := identity.NewHandler(config.Logger, config.RoleArnToAssume)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +64,6 @@ func NewAuthClient(grpcAddress string, config *Config) (*AuthClient, error) {
 }
 
 type AuthClient struct {
-	// Caller config
 	grpcAddress string
 	config *Config
 
@@ -121,7 +139,7 @@ func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql
 		return nil, fmt.Errorf("unable to parse host from %s", dataSourceName)
 	}
 	if dbPort == "" {
-		// TODO warn that we were unable to parse the port.
+		a.config.Logger.Warnf("unable to parse port from %s, defaulting to %s", dataSourceName, defaultPostgresPort)
 		dbPort = defaultPostgresPort
 	}
 
