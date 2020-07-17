@@ -24,6 +24,9 @@ const (
 	postgresUrlPrefix   = "postgres://"
 )
 
+var passwordIncludedErr = errors.New("approzium is for passwordless authentication and uses your identity as your password, " +
+	"please remove the password field from your connection string")
+
 // Examples of grpcAddr:
 // 		- authenticator:6001 (in Docker networking where http(s) can be dropped)
 // 		- http://localhost:6001
@@ -155,13 +158,13 @@ func (c *Config) parse() error {
 // and then adds a placeholder password so lib/pq won't trip from not
 // having anything supplied.
 func addPlaceholderPassword(dataSourceName string) (string, error) {
-	if strings.Contains(strings.ToLower(dataSourceName), "password") {
-		return "", errors.New("approzium is for passwordless authentication and uses your identity as your password, please remove the password field from your connection string")
-	}
-
 	if !strings.HasPrefix(dataSourceName, postgresUrlPrefix) {
 		// We received a string like:
-		// user=postgres password=mysecretpassword dbname=postgres host=localhost port=5432 sslmode=disable
+		// user=postgres dbname=postgres host=localhost port=5432 sslmode=disable
+		if strings.Contains(strings.ToLower(dataSourceName), "password") {
+			return "", passwordIncludedErr
+		}
+
 		// Just add a password=unknown field to the end and return.
 		return dataSourceName + " password=unknown", nil
 	}
@@ -170,6 +173,14 @@ func addPlaceholderPassword(dataSourceName string) (string, error) {
 	//		"postgres://pqgotest:@localhost/pqgotest?sslmode=verify-full"
 	// to:
 	//		"postgres://pqgotest:unknown@localhost/pqgotest?sslmode=verify-full"
+	u, err := url.Parse(dataSourceName)
+	if err != nil {
+		return "", err
+	}
+	if password, _ := u.User.Password(); password != "" {
+		return "", passwordIncludedErr
+	}
+
 	fields := strings.Split(dataSourceName, "@")
 	if len(fields) != 2 {
 		return "", fmt.Errorf(`expected connection string like 'postgres://pqgotest:@localhost/pqgotest?sslmode=verify-full' but received %q`, dataSourceName)
@@ -183,7 +194,9 @@ func parseDSN(logger *log.Logger, dataSourceName string) (dbHost, dbPort string,
 		if err != nil {
 			return "", "", err
 		}
-		dbHost = u.Host
+		// If a host and port were sent, this will initially come through as "localhost:1234"
+		hostFields := strings.Split(u.Host, ":")
+		dbHost = hostFields[0]
 		dbPort = u.Port()
 	} else {
 		// Extract the host and port from a string like:
