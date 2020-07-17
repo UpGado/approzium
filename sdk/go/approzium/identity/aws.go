@@ -95,4 +95,3 @@ func (h *awsIdentityHandler) refreshProof() error {
 	h.latestIdentity = id
 	return nil
 }
-

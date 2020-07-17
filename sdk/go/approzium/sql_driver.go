@@ -146,7 +146,7 @@ func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql
 				Dbuser:               user,
 				Aws:                  proof.AwsAuth,
 			},
-			Salt:                 []byte(salt),
+			Salt: []byte(salt),
 		})
 		if err != nil {
 			return "", err
