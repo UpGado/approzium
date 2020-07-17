@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	srvId "github.com/cyralinc/approzium/authenticator/server/identity"
 	pb "github.com/cyralinc/approzium/authenticator/server/protos"
 	"github.com/cyralinc/approzium/sdk/go/approzium/identity"
 	"github.com/cyralinc/pq"
@@ -101,22 +102,7 @@ func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql
 	// create a race condition.
 	a.hashFuncLock.Lock()
 	defer a.hashFuncLock.Unlock()
-	pq.GetMD5Hash = func(user, password, salt string) (string, error) {
-		resp, err := authClient.GetPGMD5Hash(context.Background(), &pb.PGMD5HashRequest{
-			PwdRequest: &pb.PasswordRequest{
-				ClientLanguage: proof.ClientLang,
-				Dbhost:         dbHost,
-				Dbport:         dbPort,
-				Dbuser:         user,
-				Aws:            proof.AwsAuth,
-			},
-			Salt: []byte(salt),
-		})
-		if err != nil {
-			return "", err
-		}
-		return resp.Hash, nil
-	}
+	pq.GetMD5Hash = fetchHashFromApproziumAuthenticator(authClient, proof, dbHost, dbPort)
 	return sql.Open(driverName, dataSourceName)
 }
 
@@ -232,4 +218,23 @@ func parseDSN(logger *log.Logger, dataSourceName string) (dbHost, dbPort string,
 		dbPort = defaultPostgresPort
 	}
 	return dbHost, dbPort, nil
+}
+
+func fetchHashFromApproziumAuthenticator(client pb.AuthenticatorClient, proof *srvId.Proof, dbHost, dbPort string) func(user, password, salt string) (string, error) {
+	return func(user, password, salt string) (string, error) {
+		resp, err := client.GetPGMD5Hash(context.Background(), &pb.PGMD5HashRequest{
+			PwdRequest: &pb.PasswordRequest{
+				ClientLanguage: proof.ClientLang,
+				Dbhost:         dbHost,
+				Dbport:         dbPort,
+				Dbuser:         user,
+				Aws:            proof.AwsAuth,
+			},
+			Salt: []byte(salt),
+		})
+		if err != nil {
+			return "", err
+		}
+		return resp.Hash, nil
+	}
 }

@@ -2,9 +2,6 @@ module github.com/cyralinc/approzium/sdk/go/approzium
 
 go 1.14
 
-// TODO strip this, it's for local debugging
-replace github.com/cyralinc/pq => ./vendor/github.com/cyralinc/pq
-
 require (
 	github.com/aws/aws-sdk-go v1.33.6
 	github.com/cyralinc/approzium/authenticator v0.0.0-20200716182448-7483a89b78d8
