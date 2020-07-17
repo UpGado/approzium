@@ -23,50 +23,6 @@ const (
 	postgresUrlPrefix   = "postgres://"
 )
 
-type Config struct {
-	// Logger is optional. It's available for you to set in case you'd like to
-	// customize it. If not set, it defaults to INFO level and text output.
-	Logger *log.Logger
-
-	// Set to true to disable. TLS is enabled by default.
-	DisableTLS bool
-
-	// This client's certificate, used for proving its identity, and used by
-	// the caller to encrypt communication with its public key.
-	PathToClientCert string
-
-	// This client's key, used for decrypting incoming communication that was
-	// encrypted by callers using the client cert's public key.
-	PathToClientKey string
-
-	// RoleArnToAssume is an optional field. Simply don't set it if you'd prefer
-	// not to assume any role when AWS is used to prove an identity. If not supplied,
-	// the enclosing environment's identity will be used. This is mostly provided
-	// for convenience of testing.
-	RoleArnToAssume string
-}
-
-func (c *Config) parse() error {
-	if c.Logger == nil {
-		c.Logger = log.New()
-		c.Logger.SetLevel(log.InfoLevel)
-		c.Logger.SetFormatter(&log.TextFormatter{
-			FullTimestamp:          true,
-			DisableLevelTruncation: true,
-			PadLevelText:           true,
-		})
-	}
-	if !c.DisableTLS {
-		if c.PathToClientCert == "" {
-			return errors.New("if TLS isn't disabled, the path to the TLS client certificate must be provided")
-		}
-		if c.PathToClientKey == "" {
-			return errors.New("if TLS isn't disabled, the path to the TLS client key must be provided")
-		}
-	}
-	return nil
-}
-
 // Examples of grpcAddr:
 // 		- authenticator:6001 (in Docker networking where http(s) can be dropped)
 // 		- http://localhost:6001
@@ -162,6 +118,50 @@ func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql
 		return resp.Hash, nil
 	}
 	return sql.Open(driverName, dataSourceName)
+}
+
+type Config struct {
+	// Logger is optional. It's available for you to set in case you'd like to
+	// customize it. If not set, it defaults to INFO level and text output.
+	Logger *log.Logger
+
+	// Set to true to disable. TLS is enabled by default.
+	DisableTLS bool
+
+	// This client's certificate, used for proving its identity, and used by
+	// the caller to encrypt communication with its public key.
+	PathToClientCert string
+
+	// This client's key, used for decrypting incoming communication that was
+	// encrypted by callers using the client cert's public key.
+	PathToClientKey string
+
+	// RoleArnToAssume is an optional field. Simply don't set it if you'd prefer
+	// not to assume any role when AWS is used to prove an identity. If not supplied,
+	// the enclosing environment's identity will be used. This is mostly provided
+	// for convenience of testing.
+	RoleArnToAssume string
+}
+
+func (c *Config) parse() error {
+	if c.Logger == nil {
+		c.Logger = log.New()
+		c.Logger.SetLevel(log.InfoLevel)
+		c.Logger.SetFormatter(&log.TextFormatter{
+			FullTimestamp:          true,
+			DisableLevelTruncation: true,
+			PadLevelText:           true,
+		})
+	}
+	if !c.DisableTLS {
+		if c.PathToClientCert == "" {
+			return errors.New("if TLS isn't disabled, the path to the TLS client certificate must be provided")
+		}
+		if c.PathToClientKey == "" {
+			return errors.New("if TLS isn't disabled, the path to the TLS client key must be provided")
+		}
+	}
+	return nil
 }
 
 // addPlaceholderPassword ensures the user hasn't provided a password
