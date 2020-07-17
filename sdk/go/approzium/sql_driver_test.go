@@ -7,7 +7,7 @@ import (
 )
 
 func TestAddPlaceholderPassword(t *testing.T) {
-	if _, err := addPlaceholderPassword( "postgres://pqgotest:somepass@localhost/pqgotest?sslmode=verify-full"); err == nil {
+	if _, err := addPlaceholderPassword("postgres://pqgotest:somepass@localhost/pqgotest?sslmode=verify-full"); err == nil {
 		t.Fatal("expected err because password should not be included in string")
 	}
 
@@ -15,7 +15,7 @@ func TestAddPlaceholderPassword(t *testing.T) {
 		t.Fatal("expected err because password should not be included in string")
 	}
 
-	result, err := addPlaceholderPassword( "postgres://pqgotest:@localhost/pqgotest?sslmode=verify-full")
+	result, err := addPlaceholderPassword("postgres://pqgotest:@localhost/pqgotest?sslmode=verify-full")
 	if err != nil {
 		t.Fatal(err)
 	}
