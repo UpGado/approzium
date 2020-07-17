@@ -1,12 +1,30 @@
 package identity
 
-import pb "github.com/cyralinc/approzium/authenticator/server/protos"
+import (
+	"github.com/cyralinc/approzium/authenticator/server/identity"
+	pb "github.com/cyralinc/approzium/authenticator/server/protos"
+)
 
-type Identity struct {
-	AWS *pb.AWSIdentity
+func NewHandler(roleArnToAssume string) (*Handler, error) {
+	awsHandler, err := newAwsIdentityHandler(roleArnToAssume)
+	if err != nil {
+		return nil, err
+	}
+	return &Handler{
+		awsIdentityHandler: awsHandler,
+	}, nil
 }
 
-func Retrieve() (*Identity, error) {
-	// TODO
-	return nil, nil
+type Handler struct {
+	awsIdentityHandler *awsIdentityHandler
+}
+
+// Retrieve gets current identity info. The returned identity
+// SHOULD NOT be cached or reused, because it expires every 15
+// minutes or less.
+func (h *Handler) Retrieve() *identity.Proof {
+	return &identity.Proof{
+		ClientLang: pb.ClientLanguage_GO,
+		AwsAuth:    h.awsIdentityHandler.RetrieveAWSIdentity(),
+	}
 }

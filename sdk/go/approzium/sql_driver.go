@@ -18,25 +18,43 @@ import (
 
 const defaultPostgresPort = "5432"
 
+type Config struct {
+	// TODO logging
+	// TODO implement TLS
+	DisableTLS bool
+	PathToTLSCert string
+	PathToTLSKey string
+	RoleArnToAssume string
+}
+
 // Examples of grpcAddr:
 // 		- authenticator:6001 (in Docker networking where http(s) can be dropped)
 // 		- http://localhost:6001
 // 		- https://localhost:6001
 // 		- https://somewhere:6001
-func NewAuthClient(grpcAddress string, pathToTLSCert, pathToTLSKey string) *AuthClient {
+func NewAuthClient(grpcAddress string, config *Config) (*AuthClient, error) {
+	identityHandler, err := identity.NewHandler(config.RoleArnToAssume)
+	if err != nil {
+		return nil, err
+	}
 	return &AuthClient{
 		grpcAddress: grpcAddress,
-		pathToTLSCert: pathToTLSCert,
-		pathToTLSKey: pathToTLSKey,
-	}
+		config: config,
+		identityHandler: identityHandler,
+	}, nil
 }
 
 type AuthClient struct {
+	// Caller config
 	grpcAddress string
-	pathToTLSCert string
-	pathToTLSKey string
+	config *Config
 
+	// This is used for preventing a race as we overwrite the hashing
+	// func for each call.
 	hashFuncLock sync.Mutex
+
+	// This is used for caching identity for an appropriate period of time.
+	identityHandler *identity.Handler
 }
 
 func (a *AuthClient) Open(driverName, dataSourceName string) (*sql.DB, error) {
@@ -107,10 +125,7 @@ func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql
 		dbPort = defaultPostgresPort
 	}
 
-	id, err := identity.Retrieve()
-	if err != nil {
-		return nil, err
-	}
+	proof := a.identityHandler.Retrieve()
 	conn, err := grpc.Dial(a.grpcAddress, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -125,11 +140,11 @@ func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql
 	pq.GetMD5Hash = func(user, password, salt string) (string, error) {
 		resp, err := authClient.GetPGMD5Hash(context.Background(), &pb.PGMD5HashRequest{
 			PwdRequest:           &pb.PasswordRequest{
-				ClientLanguage:       pb.ClientLanguage_GO,
+				ClientLanguage:       proof.ClientLang,
 				Dbhost:               dbHost,
 				Dbport:               dbPort,
 				Dbuser:               user,
-				Aws:                  id.AWS,
+				Aws:                  proof.AwsAuth,
 			},
 			Salt:                 []byte(salt),
 		})

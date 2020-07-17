@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/cyralinc/approzium/sdk/go/approzium"
 	"log"
+	"os"
+
+	"github.com/cyralinc/approzium/sdk/go/approzium"
 )
 
 /*
@@ -27,10 +29,18 @@ psql -h localhost -U postgres
 
  */
 func main() {
-	authClient := approzium.NewAuthClient("authenticator:6001", "", "")
+	// Create a connection to the Approzium authenticator, because only it knows the password.
+	authClient, err := approzium.NewAuthClient("authenticator:6001", &approzium.Config{
+		DisableTLS: true,
+		RoleArnToAssume: os.Getenv("TEST_ASSUMABLE_ARN"),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// We also support strings like:
-	// "postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full"
+	// Now create a Postgres connection like normal but _without_ a password included.
+	// Note - we also support strings like:
+	// "postgres://pqgotest:@localhost/pqgotest?sslmode=verify-full"
 	dataSourceName := "user=postgres password=mysecretpassword dbname=postgres host=localhost port=5432 sslmode=disable"
 	db, err := authClient.Open("postgres", dataSourceName)
 	if err != nil {
