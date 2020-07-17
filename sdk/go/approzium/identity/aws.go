@@ -18,8 +18,8 @@ var refreshEvery = 5 * time.Minute
 // To not assume a role, simply provide "".
 func newAwsIdentityHandler(logger *log.Logger, roleArnToAssume string) (*awsIdentityHandler, error) {
 	h := &awsIdentityHandler{
-		logger: logger,
-		roleArnToAssume:     roleArnToAssume,
+		logger:          logger,
+		roleArnToAssume: roleArnToAssume,
 	}
 	// Initially ensure we can get a caller identity on the main thread so
 	// we can provide immediate feedback if it's misconfigured.
@@ -33,7 +33,7 @@ func newAwsIdentityHandler(logger *log.Logger, roleArnToAssume string) (*awsIden
 }
 
 type awsIdentityHandler struct {
-	logger *log.Logger
+	logger          *log.Logger
 	roleArnToAssume string
 
 	identityLock   sync.RWMutex

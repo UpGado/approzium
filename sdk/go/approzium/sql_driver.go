@@ -26,9 +26,9 @@ type Config struct {
 
 	// TODO implement TLS
 	// Set to true
-	DisableTLS bool
+	DisableTLS    bool
 	PathToTLSCert string
-	PathToTLSKey string
+	PathToTLSKey  string
 
 	// RoleArnToAssume is an optional field. Simply don't set it if you'd prefer
 	// not to assume any role when AWS is used to prove an identity. If not supplied,
