@@ -17,7 +17,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-const defaultPostgresPort = "5432"
+const (
+	defaultPostgresPort = "5432"
+	postgresUrlPrefix = "postgres://"
+)
 
 type Config struct {
 	// Logger is optional. It's available for you to set in case you'd like to
@@ -85,62 +88,14 @@ func (a *AuthClient) Open(driverName, dataSourceName string) (*sql.DB, error) {
 }
 
 func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql.DB, error) {
-	if strings.Contains(strings.ToLower(dataSourceName), "password") {
-		return nil, errors.New("approzium is for passwordless authentication and uses your identity as your password, please remove the password field from your connection string")
+	dataSourceName, err := addPlaceholderPassword(dataSourceName)
+	if err != nil {
+		return nil, err
 	}
 
-	dbHost := ""
-	dbPort := ""
-
-	// Add a placeholder password of "unknown" so the code won't error on an empty value.
-	if strings.HasPrefix(dataSourceName, "postgres://") {
-		// Convert strings like:
-		//		"postgres://pqgotest:@localhost/pqgotest?sslmode=verify-full"
-		// to:
-		//		"postgres://pqgotest:unknown@localhost/pqgotest?sslmode=verify-full"
-		fields := strings.Split(dataSourceName, "@")
-		if len(fields) != 2 {
-			return nil, fmt.Errorf(`expected connection string like 'postgres://pqgotest:@localhost/pqgotest?sslmode=verify-full' but received %q`, dataSourceName)
-		}
-		dataSourceName = fields[0] + "unknown@" + fields[1]
-		u, err := url.Parse(dataSourceName)
-		if err != nil {
-			return nil, err
-		}
-		dbHost = u.Host
-		dbPort = u.Port()
-	} else {
-		dataSourceName += " password=unknown"
-
-		// Extract the host and port from a string like:
-		// 		"user=postgres password=mysecretpassword dbname=postgres host=localhost port=5432 sslmode=disable"
-		fields := strings.Split(dataSourceName, " ")
-		for _, field := range fields {
-			if dbHost != "" && dbPort != "" {
-				break
-			}
-			kv := strings.Split(field, "=")
-			if len(kv) != 2 {
-				return nil, fmt.Errorf("expected one = per group, but received %s", field)
-			}
-			key := kv[0]
-			val := kv[1]
-			if key == "host" {
-				dbHost = val
-				continue
-			}
-			if key == "port" {
-				dbPort = val
-				continue
-			}
-		}
-	}
-	if dbHost == "" {
-		return nil, fmt.Errorf("unable to parse host from %s", dataSourceName)
-	}
-	if dbPort == "" {
-		a.config.Logger.Warnf("unable to parse port from %s, defaulting to %s", dataSourceName, defaultPostgresPort)
-		dbPort = defaultPostgresPort
+	dbHost, dbPort, err := parseDSN(a.config.Logger, dataSourceName)
+	if err != nil {
+		return nil, err
 	}
 
 	proof := a.identityHandler.Retrieve()
@@ -172,4 +127,74 @@ func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql
 		return resp.Hash, nil
 	}
 	return sql.Open(driverName, dataSourceName)
+}
+
+// addPlaceholderPassword ensures the user hasn't provided a password
+// (because only the Approzium authentication server should have it),
+// and then adds a placeholder password so lib/pq won't trip from not
+// having anything supplied.
+func addPlaceholderPassword(dataSourceName string) (string, error) {
+	if strings.Contains(strings.ToLower(dataSourceName), "password") {
+		return "", errors.New("approzium is for passwordless authentication and uses your identity as your password, please remove the password field from your connection string")
+	}
+
+	if !strings.HasPrefix(dataSourceName, postgresUrlPrefix) {
+		// We received a string like:
+		// user=postgres password=mysecretpassword dbname=postgres host=localhost port=5432 sslmode=disable
+		// Just add a password=unknown field to the end and return.
+		return dataSourceName + " password=unknown", nil
+	}
+
+	// Convert strings like:
+	//		"postgres://pqgotest:@localhost/pqgotest?sslmode=verify-full"
+	// to:
+	//		"postgres://pqgotest:unknown@localhost/pqgotest?sslmode=verify-full"
+	fields := strings.Split(dataSourceName, "@")
+	if len(fields) != 2 {
+		return "", fmt.Errorf(`expected connection string like 'postgres://pqgotest:@localhost/pqgotest?sslmode=verify-full' but received %q`, dataSourceName)
+	}
+	return fields[0] + "unknown@" + fields[1], nil
+}
+
+func parseDSN(logger *log.Logger, dataSourceName string) (dbHost, dbPort string, err error) {
+	if strings.HasPrefix(dataSourceName, postgresUrlPrefix) {
+		u, err := url.Parse(dataSourceName)
+		if err != nil {
+			return "", "", err
+		}
+		dbHost = u.Host
+		dbPort = u.Port()
+	} else {
+		// Extract the host and port from a string like:
+		// 		"user=postgres password=mysecretpassword dbname=postgres host=localhost port=5432 sslmode=disable"
+		fields := strings.Split(dataSourceName, " ")
+		for _, field := range fields {
+			if dbHost != "" && dbPort != "" {
+				break
+			}
+			kv := strings.Split(field, "=")
+			if len(kv) != 2 {
+				return "", "", fmt.Errorf("expected one = per group, but received %s", field)
+			}
+			key := kv[0]
+			val := kv[1]
+			if key == "host" {
+				dbHost = val
+				continue
+			}
+			if key == "port" {
+				dbPort = val
+				continue
+			}
+		}
+	}
+
+	if dbHost == "" {
+		return "", "", fmt.Errorf("unable to parse host from %s", dataSourceName)
+	}
+	if dbPort == "" {
+		logger.Warnf("unable to parse port from %s, defaulting to %s", dataSourceName, defaultPostgresPort)
+		dbPort = defaultPostgresPort
+	}
+	return dbHost, dbPort, nil
 }
