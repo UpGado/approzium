@@ -15,6 +15,7 @@ import (
 	_ "github.com/cyralinc/pq"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -27,11 +28,16 @@ type Config struct {
 	// customize it. If not set, it defaults to INFO level and text output.
 	Logger *log.Logger
 
-	// TODO implement TLS
-	// Set to true
-	DisableTLS    bool
-	PathToTLSCert string
-	PathToTLSKey  string
+	// Set to true to disable. TLS is enabled by default.
+	DisableTLS bool
+
+	// This client's certificate, used for proving its identity, and used by
+	// the caller to encrypt communication with its public key.
+	PathToClientCert string
+
+	// This client's key, used for decrypting incoming communication that was
+	// encrypted by callers using the client cert's public key.
+	PathToClientKey string
 
 	// RoleArnToAssume is an optional field. Simply don't set it if you'd prefer
 	// not to assume any role when AWS is used to prove an identity. If not supplied,
@@ -40,21 +46,37 @@ type Config struct {
 	RoleArnToAssume string
 }
 
+func (c *Config) parse() error {
+	if c.Logger == nil {
+		c.Logger = log.New()
+		c.Logger.SetLevel(log.InfoLevel)
+		c.Logger.SetFormatter(&log.TextFormatter{
+			FullTimestamp:          true,
+			DisableLevelTruncation: true,
+			PadLevelText:           true,
+		})
+	}
+	if !c.DisableTLS {
+		if c.PathToClientCert == "" {
+			return errors.New("if TLS isn't disabled, the path to the TLS client certificate must be provided")
+		}
+		if c.PathToClientKey == "" {
+			return errors.New("if TLS isn't disabled, the path to the TLS client key must be provided")
+		}
+	}
+	return nil
+}
+
 // Examples of grpcAddr:
 // 		- authenticator:6001 (in Docker networking where http(s) can be dropped)
 // 		- http://localhost:6001
 // 		- https://localhost:6001
 // 		- https://somewhere:6001
 func NewAuthClient(grpcAddress string, config *Config) (*AuthClient, error) {
-	if config.Logger == nil {
-		config.Logger = log.New()
-		config.Logger.SetLevel(log.InfoLevel)
-		config.Logger.SetFormatter(&log.TextFormatter{
-			FullTimestamp:          true,
-			DisableLevelTruncation: true,
-			PadLevelText:           true,
-		})
+	if err := config.parse(); err != nil {
+		return nil, err
 	}
+
 	identityHandler, err := identity.NewHandler(config.Logger, config.RoleArnToAssume)
 	if err != nil {
 		return nil, err
@@ -99,9 +121,22 @@ func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql
 	}
 
 	proof := a.identityHandler.Retrieve()
-	conn, err := grpc.Dial(a.grpcAddress, grpc.WithInsecure())
-	if err != nil {
-		return nil, err
+
+	var conn grpc.ClientConnInterface
+	if a.config.DisableTLS {
+		conn, err = grpc.Dial(a.grpcAddress, grpc.WithInsecure())
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		creds, err := credentials.NewClientTLSFromFile(a.config.PathToClientCert, a.config.PathToClientKey)
+		if err != nil {
+			return nil, err
+		}
+		conn, err = grpc.Dial(a.grpcAddress, grpc.WithTransportCredentials(creds))
+		if err != nil {
+			return nil, err
+		}
 	}
 	authClient := pb.NewAuthenticatorClient(conn)
 
