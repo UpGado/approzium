@@ -13,6 +13,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// GetCallerIdentity strings expire every 15 minutes to prevent
+// replay attacks, so let's refresh ours every 5.
 var refreshEvery = 5 * time.Minute
 
 // To not assume a role, simply provide "".
