@@ -31,7 +31,7 @@ psql -h localhost -U postgres
 func main() {
 	// Create a connection to the Approzium authenticator, because only it knows the password.
 	authClient, err := approzium.NewAuthClient("authenticator:6001", &approzium.Config{
-		DisableTLS: true,
+		DisableTLS:      true,
 		RoleArnToAssume: os.Getenv("TEST_ASSUMABLE_ARN"),
 	})
 	if err != nil {

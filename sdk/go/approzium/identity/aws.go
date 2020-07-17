@@ -36,8 +36,8 @@ type awsIdentityHandler struct {
 	logger *log.Logger
 	roleArnToAssume string
 
-	identityLock sync.RWMutex
-	latestIdentity      *pb.AWSIdentity
+	identityLock   sync.RWMutex
+	latestIdentity *pb.AWSIdentity
 }
 
 func (h *awsIdentityHandler) RetrieveAWSIdentity() *pb.AWSIdentity {
@@ -47,11 +47,11 @@ func (h *awsIdentityHandler) RetrieveAWSIdentity() *pb.AWSIdentity {
 }
 
 func (h *awsIdentityHandler) startBackgroundRefresh() {
-	go func(){
+	go func() {
 		ticker := time.NewTicker(refreshEvery)
 		for true {
 			select {
-			case <- ticker.C:
+			case <-ticker.C:
 				if err := h.refreshProof(); err != nil {
 					h.logger.Warnf("unable to refresh AWS get caller identity creds due to %s", err)
 					continue
