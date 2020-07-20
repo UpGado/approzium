@@ -20,11 +20,12 @@ func TestPostgresMD5(t *testing.T) {
 		disableTLS = b
 	}
 	authClient, err := approzium.NewAuthClient("authenticator:6001", &approzium.Config{
-		Logger:           log.New(),
-		DisableTLS:       disableTLS,
-		PathToClientCert: os.Getenv("TEST_CERT_DIR") + "/client.pem",
-		PathToClientKey:  os.Getenv("TEST_CERT_DIR") + "/client.key",
-		RoleArnToAssume:  os.Getenv("TEST_ASSUMABLE_ARN"),
+		Logger:               log.New(),
+		DisableTLS:           disableTLS,
+		PathToTrustedCACerts: os.Getenv("TEST_CERT_DIR") + "/approzium.pem",
+		PathToClientCert:     os.Getenv("TEST_CERT_DIR") + "/client.pem",
+		PathToClientKey:      os.Getenv("TEST_CERT_DIR") + "/client.key",
+		RoleArnToAssume:      os.Getenv("TEST_ASSUMABLE_ARN"),
 	})
 	if err != nil {
 		t.Fatal(err)
