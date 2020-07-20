@@ -127,8 +127,7 @@ type Config struct {
 
 	// RoleArnToAssume is an optional field. Simply don't set it if you'd prefer
 	// not to assume any role when AWS is used to prove an identity. If not supplied,
-	// the enclosing environment's identity will be used. This is mostly provided
-	// for convenience of testing.
+	// the enclosing environment's identity will be used.
 	RoleArnToAssume string
 }
 

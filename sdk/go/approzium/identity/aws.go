@@ -72,8 +72,9 @@ func (h *awsIdentityHandler) startBackgroundRefresh() {
 	}()
 }
 
-// TODO I need to test this on an EC2 instance to make sure it works
-// Also, Lambda and maybe some other locations.
+// This has been tested and confirmed to work with:
+//		- A given role to assume (uses the role arn and succeeds).
+//		- AWS EC2 instances that have been launched into a role (uses the role arn and succeeds).
 func (h *awsIdentityHandler) refreshProof() error {
 	sess, err := session.NewSession()
 	if err != nil {
