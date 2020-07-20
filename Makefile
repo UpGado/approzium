@@ -64,7 +64,9 @@ run-testsuite: run-gotests run-pg2tests
 
 run-gotests:
 	cd authenticator && CGO_ENABLED=1 go test -v -race ./...
-	cd ../sdk/go/approzium && CGO_ENABLED=1 go test -v -race ./...
+	echo "My working directory is "
+	pwd
+	cd sdk/go/approzium && CGO_ENABLED=1 go test -v -race ./...
 
 run-pythontests: enable-vault-path seed-vault-all-addrs
 	cd sdk/python && poetry run pytest --workers auto
