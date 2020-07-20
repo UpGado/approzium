@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"testing"
@@ -18,7 +19,7 @@ func TestPostgresMD5(t *testing.T) {
 		}
 		disableTLS = b
 	}
-	authClient, err := approzium.NewAuthClient("localhost:6001", &approzium.Config{
+	authClient, err := approzium.NewAuthClient("authenticator:6001", &approzium.Config{
 		Logger:           log.New(),
 		DisableTLS:       disableTLS,
 		PathToClientCert: os.Getenv("TEST_CERT_DIR") + "/client.pem",
@@ -29,7 +30,12 @@ func TestPostgresMD5(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dataSourceName := "user=postgres dbname=postgres host=localhost port=5432 sslmode=disable"
+	dataSourceName := fmt.Sprintf("user=%s dbname=%s host=dbmd5 port=%s sslmode=%s",
+		os.Getenv("PSYCOPG2_TESTDB_USER"),
+		os.Getenv("PSYCOPG2_TESTDB"),
+		os.Getenv("PSYCOPG2_TESTDB_PORT"),
+		os.Getenv("PGSSLMODE"),
+	)
 	db, err := authClient.Open("postgres", dataSourceName)
 	if err != nil {
 		t.Fatal(err)
