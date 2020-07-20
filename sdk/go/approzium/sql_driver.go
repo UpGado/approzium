@@ -28,10 +28,10 @@ var passwordIncludedErr = errors.New("approzium is for passwordless authenticati
 	"please remove the password field from your connection string")
 
 // Examples of grpcAddr:
-// 		- authenticator:6001 (in Docker networking where http(s) can be dropped)
-// 		- http://localhost:6001
-// 		- https://localhost:6001
-// 		- https://somewhere:6001
+// 		- authenticator:6001
+// 		- localhost:6001
+// 		- somewhere:6001
+// HTTPS is used unless TLS is disabled.
 func NewAuthClient(grpcAddress string, config *Config) (*AuthClient, error) {
 	if err := config.parse(); err != nil {
 		return nil, err

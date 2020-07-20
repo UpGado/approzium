@@ -22,7 +22,8 @@ type Handler struct {
 
 // Retrieve gets current identity info. The returned identity
 // SHOULD NOT be cached or reused, because it expires every 15
-// minutes or less.
+// minutes or less. The Handler will cache and return things
+// as appropriate so the caller doesn't need to worry about it.
 func (h *Handler) Retrieve() *identity.Proof {
 	return &identity.Proof{
 		ClientLang: pb.ClientLanguage_GO,

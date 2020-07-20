@@ -55,6 +55,10 @@ func (h *awsIdentityHandler) startBackgroundRefresh() {
 			select {
 			case <-ticker.C:
 				if err := h.refreshProof(); err != nil {
+					// In case the issue was transient, just warn and continue. The application
+					// will continue using the latest creds and attempting to refresh them. If we're
+					// never able to refresh the credentials again, the Approzium authenticator will
+					// eventually return a failure response due to an expired GetCallerIdentity string.
 					h.logger.Warnf("unable to refresh AWS get caller identity creds due to %s", err)
 					continue
 				}
@@ -68,6 +72,8 @@ func (h *awsIdentityHandler) startBackgroundRefresh() {
 	}()
 }
 
+// TODO I need to test this on an EC2 instance to make sure it works
+// Also, Lambda and maybe some other locations.
 func (h *awsIdentityHandler) refreshProof() error {
 	sess, err := session.NewSession()
 	if err != nil {
