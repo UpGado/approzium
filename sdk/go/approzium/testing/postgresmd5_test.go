@@ -30,11 +30,10 @@ func TestPostgresMD5(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dataSourceName := fmt.Sprintf("user=%s dbname=%s host=dbmd5 port=%s sslmode=%s",
+	dataSourceName := fmt.Sprintf("user=%s dbname=%s host=dbmd5 port=%s sslmode=require",
 		os.Getenv("PSYCOPG2_TESTDB_USER"),
 		os.Getenv("PSYCOPG2_TESTDB"),
 		os.Getenv("PSYCOPG2_TESTDB_PORT"),
-		os.Getenv("PGSSLMODE"),
 	)
 	db, err := authClient.Open("postgres", dataSourceName)
 	if err != nil {
