@@ -2,9 +2,13 @@ package approzium
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"errors"
 	"fmt"
+	"google.golang.org/grpc/credentials"
+	"io/ioutil"
 	"net/url"
 	"strings"
 	"sync"
@@ -16,7 +20,6 @@ import (
 	_ "github.com/cyralinc/pq"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -82,22 +85,16 @@ func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql
 
 	proof := a.identityHandler.Retrieve()
 
-	var conn grpc.ClientConnInterface
-	if a.config.DisableTLS {
-		conn, err = grpc.Dial(a.grpcAddress, grpc.WithInsecure())
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		creds, err := credentials.NewClientTLSFromFile(a.config.PathToClientCert, a.config.PathToClientKey)
-		if err != nil {
-			return nil, err
-		}
-		conn, err = grpc.Dial(a.grpcAddress, grpc.WithTransportCredentials(creds))
-		if err != nil {
-			return nil, err
-		}
+	conn, err := a.grpcConnection()
+	if err != nil {
+		return nil, err
 	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			a.config.Logger.Warnf("unable to close GRPC connection due to %s", err)
+		}
+	}()
+
 	authClient := pb.NewAuthenticatorClient(conn)
 
 	// In case the client is being used on multiple threads, we need to
@@ -107,6 +104,48 @@ func (a *AuthClient) handlePostgresConn(driverName, dataSourceName string) (*sql
 	defer a.hashFuncLock.Unlock()
 	pq.GetMD5Hash = fetchHashFromApproziumAuthenticator(authClient, proof, dbHost, dbPort)
 	return sql.Open(driverName, dataSourceName)
+}
+
+func (a *AuthClient) grpcConnection() (*grpc.ClientConn, error) {
+	if a.config.DisableTLS {
+		return grpc.Dial(a.grpcAddress, grpc.WithInsecure())
+	}
+
+	tlsConfig := &tls.Config{}
+
+	if a.config.PathToClientCert != "" {
+		clientCertBytes, err := ioutil.ReadFile(a.config.PathToClientCert)
+		if err != nil {
+			return nil, err
+		}
+		clientKeyBytes, err := ioutil.ReadFile(a.config.PathToClientKey)
+		if err != nil {
+			return nil, err
+		}
+		clientCert, err := tls.LoadX509KeyPair(string(clientCertBytes), string(clientKeyBytes))
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{clientCert}
+	}
+
+	if a.config.PathToTrustedCACerts != "" {
+		trustedCACerts, err := ioutil.ReadFile(a.config.PathToTrustedCACerts)
+		if err != nil {
+			return nil, err
+		}
+		pool, err := x509.SystemCertPool()
+		if err != nil {
+			return nil, err
+		}
+		if !pool.AppendCertsFromPEM(trustedCACerts) {
+			return nil, fmt.Errorf("credentials: failed to append certificates at %s with body %s, "+
+				"please check that they are valid CA certificates", a.config.PathToTrustedCACerts, trustedCACerts)
+		}
+		tlsConfig.RootCAs = pool
+	}
+
+	return grpc.Dial(a.grpcAddress, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 }
 
 type Config struct {
@@ -125,6 +164,10 @@ type Config struct {
 	// encrypted by callers using the client cert's public key.
 	PathToClientKey string
 
+	// The path to the root certificate(s) that must have issued the identity
+	// certificate used by Approzium's authentication server.
+	PathToTrustedCACerts string
+
 	// RoleArnToAssume is an optional field. Simply don't set it if you'd prefer
 	// not to assume any role when AWS is used to prove an identity. If not supplied,
 	// the enclosing environment's identity will be used.
@@ -142,11 +185,12 @@ func (c *Config) parse() error {
 		})
 	}
 	if !c.DisableTLS {
-		if c.PathToClientCert == "" {
-			return errors.New("if TLS isn't disabled, the path to the TLS client certificate must be provided")
+		if c.PathToClientCert == "" && c.PathToTrustedCACerts == "" {
+			return errors.New("if TLS isn't disabled, the path to the TLS client certificate " +
+				"or the path to trusted CA certs must be provided")
 		}
-		if c.PathToClientKey == "" {
-			return errors.New("if TLS isn't disabled, the path to the TLS client key must be provided")
+		if c.PathToClientCert != "" && c.PathToClientKey == "" {
+			return errors.New("if a client cert is supplied, a client key must be supplied as well")
 		}
 	}
 	return nil

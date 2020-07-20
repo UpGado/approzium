@@ -11,13 +11,6 @@ import (
 )
 
 func TestPostgresMD5(t *testing.T) {
-	// TODO stripme
-	// For debugging, output env
-	env := os.Environ()
-	for _, envVar := range env {
-		fmt.Println(envVar)
-	}
-
 	disableTLS := false
 	if raw := os.Getenv("APPROZIUM_DISABLE_TLS"); raw != "" {
 		b, err := strconv.ParseBool(raw)
