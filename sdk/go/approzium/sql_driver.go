@@ -7,8 +7,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/cyralinc/approzium/sdk/go/approzium/util"
 	"google.golang.org/grpc/credentials"
-	"io/ioutil"
 	"net/url"
 	"strings"
 	"sync"
@@ -114,14 +114,12 @@ func (a *AuthClient) grpcConnection() (*grpc.ClientConn, error) {
 	tlsConfig := &tls.Config{}
 
 	if a.config.PathToClientCert != "" {
-		fmt.Println("reading " + a.config.PathToClientCert)
-		clientCertBytes, err := ioutil.ReadFile(a.config.PathToClientCert)
-		fmt.Printf("clientCertBytes: %s\n", clientCertBytes)
+		clientCertBytes, err := util.ReadFile(a.config.PathToClientCert)
 		if err != nil {
 			return nil, err
 		}
-		clientKeyBytes, err := ioutil.ReadFile(a.config.PathToClientKey)
-		if err != nil {
+		clientKeyBytes, err := util.ReadFile(a.config.PathToClientKey)
+		if len(clientCertBytes) == 0 && err != nil {
 			return nil, err
 		}
 		clientCert, err := tls.LoadX509KeyPair(string(clientCertBytes), string(clientKeyBytes))
@@ -132,7 +130,7 @@ func (a *AuthClient) grpcConnection() (*grpc.ClientConn, error) {
 	}
 
 	if a.config.PathToTrustedCACerts != "" {
-		trustedCACerts, err := ioutil.ReadFile(a.config.PathToTrustedCACerts)
+		trustedCACerts, err := util.ReadFile(a.config.PathToTrustedCACerts)
 		if err != nil {
 			return nil, err
 		}
