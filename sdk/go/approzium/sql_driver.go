@@ -116,6 +116,7 @@ func (a *AuthClient) grpcConnection() (*grpc.ClientConn, error) {
 	if a.config.PathToClientCert != "" {
 		fmt.Println("reading " + a.config.PathToClientCert)
 		clientCertBytes, err := ioutil.ReadFile(a.config.PathToClientCert)
+		fmt.Printf("clientCertBytes: %s\n", clientCertBytes)
 		if err != nil {
 			return nil, err
 		}

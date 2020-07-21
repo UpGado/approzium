@@ -63,9 +63,6 @@ seed-vault-all-addrs:
 run-testsuite: run-gotests run-pg2tests
 
 run-gotests:
-	echo 'Copying file'
-	cp /usr/src/approzium/authenticator/server/testing/client.pem .
-	echo 'Copied file successfully'
 	cd authenticator && CGO_ENABLED=1 go test -v -race ./...
 	cd sdk/go/approzium && CGO_ENABLED=1 go test -v -race ./...
 
